@@ -1,0 +1,20 @@
+# Minimal Salt config for running this repo's formula UNPRIVILEGED:
+#
+#   salt-call --local --config-dir="$PWD/salt-local" \
+#     --file-root="$PWD" state.apply herdr-pick
+#
+# A system-wide Salt install ships root-owned cache/log/sock dirs under
+# /var, which an unprivileged salt-call cannot write. This config points
+# every writable location at /tmp instead, so the formula (which only
+# writes into your $HOME) runs as your own user with no root anywhere.
+# Run it with a config-dir your user can also read: this file lives in
+# the repo, and the /tmp dirs Salt creates on the fly.
+#
+# Root users don't need this file (see the README's root variant, which
+# can also opt into installing the fzf/jq/git/gh packages via pillar).
+
+cachedir: /tmp/herdr-pick-salt/cache
+pki_dir: /tmp/herdr-pick-salt/pki
+sock_dir: /tmp/herdr-pick-salt/sock
+log_file: /tmp/herdr-pick-salt/salt.log
+extension_modules: /tmp/herdr-pick-salt/extmods

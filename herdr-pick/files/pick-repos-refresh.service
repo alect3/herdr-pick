@@ -1,0 +1,10 @@
+# Refresh the pick GitHub repo cache. Triggered by pick-repos-refresh.timer
+# (same basename, so systemd links them automatically). Oneshot: runs the
+# script once and exits. A failure (locked keyring, offline) is expected
+# and harmless, the script keeps the last-good cache; the timer retries.
+[Unit]
+Description=Refresh the pick GitHub repo cache
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/pick-repos-refresh
