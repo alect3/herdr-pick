@@ -296,7 +296,7 @@ one.
 bats test/
 ```
 
-27 tests cover the pure config resolution (`parse_destination`,
+29 tests cover the pure config resolution (`parse_destination`,
 `clone_dest`, `resolve_default_owner`), the refresh's keep-last-good
 behaviour with `gh` stubbed, and the full dispatch end-to-end with
 `herdr`, `fzf` and `gh` stubbed (jq stays real, parsing the stub
