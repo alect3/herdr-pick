@@ -368,6 +368,26 @@ STUB
   grep -Fx "herdr workspace create --cwd $HOME/projects/cool-tool --label cool-tool --focus" "$HERDR_LOG"
 }
 
+@test "dispatch: missing editor binary leaves a plain pane" {
+  dispatch_setup $'notes-api\nnotes-api'
+  export PICK_EDIT_CMD='definitely-not-a-real-editor-xyz .'
+  mkdir -p "$HOME/projects/notes-api"
+  run bash "$PICK"
+  [ "$status" -eq 0 ]
+  grep -F 'herdr pane split' "$HERDR_LOG"
+  ! grep -q 'pane run' "$HERDR_LOG"
+}
+
+@test "dispatch: empty PICK_EDIT_CMD leaves a plain pane" {
+  dispatch_setup $'notes-api\nnotes-api'
+  export PICK_EDIT_CMD=''
+  mkdir -p "$HOME/projects/notes-api"
+  run bash "$PICK"
+  [ "$status" -eq 0 ]
+  grep -F 'herdr pane split' "$HERDR_LOG"
+  ! grep -q 'pane run' "$HERDR_LOG"
+}
+
 @test "dispatch: unknown typed name with Cancel does nothing" {
   dispatch_setup $'cool-tool'
   FZF_LATER_PICK=first run bash "$PICK"

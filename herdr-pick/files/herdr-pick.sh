@@ -64,8 +64,10 @@ set -euo pipefail
 #   PICK_OWNER_DIR      optional map overriding where an owner's repos
 #                       clone: PICK_OWNER_DIR[owner]=dir
 #   PICK_EDIT_CMD       command run in the editor pane of an opened
-#                       workspace (default "nvim .", skipped when nvim is
-#                       not installed; set it empty for a plain shell)
+#                       workspace (default "nvim ." when nvim is
+#                       installed; set it empty for a plain shell). When
+#                       the command's binary is missing, the pane run is
+#                       skipped rather than erroring.
 declare -a PICK_SITES=()
 declare -A PICK_OWNER_DIR=()
 CONF="${HERDR_PICK_CONF:-${XDG_CONFIG_HOME:-$HOME/.config}/herdr-pick/pick.conf}"
@@ -175,11 +177,19 @@ open_project() {
   # left/agent pane regardless of split's focus behaviour. The default
   # "nvim ." opens the workspace cwd (nvim's explorer on the project)
   # rather than the dashboard start screen; the pane's cwd is already the
-  # project (--cwd above), so "." resolves to it. An unset PICK_EDIT_CMD
-  # falls back to nvim and is skipped when nvim isn't installed; a conf-set
-  # command is trusted verbatim (set it empty for a plain shell).
+  # project (--cwd above), so "." resolves to it. The launch is
+  # best-effort for the default and for conf-set commands alike: when the
+  # binary is missing (or PICK_EDIT_CMD is empty) the pane is left as a
+  # plain shell rather than erroring.
   if [[ -n "${PICK_EDIT_CMD+x}" ]]; then
-    herdr pane run "$right" "$PICK_EDIT_CMD" >/dev/null 2>&1 || true
+    edit_bin=""
+    for tok in $PICK_EDIT_CMD; do
+      [[ "$tok" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]] || { edit_bin="$tok"; break; }
+    done
+    if [[ -n "${PICK_EDIT_CMD}" ]] \
+       && { [[ -z "$edit_bin" ]] || command -v "$edit_bin" >/dev/null 2>&1; }; then
+      herdr pane run "$right" "$PICK_EDIT_CMD" >/dev/null 2>&1 || true
+    fi
   elif command -v nvim >/dev/null 2>&1; then
     herdr pane run "$right" "nvim ." >/dev/null 2>&1 || true
   fi

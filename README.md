@@ -270,7 +270,8 @@ PICK_OWNER_DIR[acme-org]="$HOME/work"
 PICK_DEFAULT_OWNER=you
 
 # Editor pane command (left pane stays an empty shell for your agent).
-# Default "nvim ." when nvim exists; set empty for a plain shell.
+# Default "nvim ." when nvim exists; skipped when the binary is missing;
+# set empty for a plain shell.
 PICK_EDIT_CMD="nvim ."
 ```
 
