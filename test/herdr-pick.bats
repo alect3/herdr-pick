@@ -275,8 +275,10 @@ STUB
 #
 # The whole picker runs with stubbed commands logging their arguments, so
 # the dispatch contract is checked for real: fzf's output drives herdr's
-# workspace/pane CLI. jq stays REAL, parsing the stub responses, a jq-side
-# API-shape regression in open_project fails the test instead of hiding.
+# workspace CLI, and opening a project is a single `workspace create`, no
+# pane surgery. jq stays REAL, parsing the stub responses, so a jq-side
+# API-shape regression in the workspace-list discovery fails the test
+# instead of hiding.
 #
 # fzf stub: the first call (the menu, --print-query) prints $1 verbatim;
 # later calls (the create confirm) print a line chosen from stdin by
@@ -303,7 +305,6 @@ echo "herdr $*" >>"$HERDR_LOG"
 case "$1 $2" in
   "workspace list") echo '{"result":{"workspaces":[{"workspace_id":"w1","label":"dotfiles"}]}}' ;;
   "workspace create") echo '{"result":{"root_pane":{"pane_id":"p1"}}}' ;;
-  "pane split") echo '{"result":{"pane":{"pane_id":"p2"}}}' ;;
   *) echo '{}' ;;
 esac
 STUB
@@ -339,14 +340,15 @@ STUB
   ! grep -q 'workspace create' "$HERDR_LOG"
 }
 
-@test "dispatch: selecting a local project opens a labelled workspace" {
+@test "dispatch: selecting a local project opens a single-pane workspace" {
   dispatch_setup $'notes-api\nnotes-api'
   mkdir -p "$HOME/projects/notes-api"
   run bash "$PICK"
   [ "$status" -eq 0 ]
   grep -Fx "herdr workspace create --cwd $HOME/projects/notes-api --label notes-api --focus" "$HERDR_LOG"
-  grep -F 'herdr pane split p1 --direction right' "$HERDR_LOG"
-  grep -F 'herdr pane focus --direction left --pane p2' "$HERDR_LOG"
+  ! grep -q 'pane split' "$HERDR_LOG"
+  ! grep -q 'pane run' "$HERDR_LOG"
+  ! grep -q 'pane focus' "$HERDR_LOG"
 }
 
 @test "dispatch: selecting a cached repo clones it then opens it" {
@@ -366,26 +368,6 @@ STUB
   [ -d "$HOME/projects/cool-tool" ]
   grep -Fx 'gh repo create you/cool-tool --private --source='"$HOME"'/projects/cool-tool --remote=origin' "$GH_LOG"
   grep -Fx "herdr workspace create --cwd $HOME/projects/cool-tool --label cool-tool --focus" "$HERDR_LOG"
-}
-
-@test "dispatch: missing editor binary leaves a plain pane" {
-  dispatch_setup $'notes-api\nnotes-api'
-  export PICK_EDIT_CMD='definitely-not-a-real-editor-xyz .'
-  mkdir -p "$HOME/projects/notes-api"
-  run bash "$PICK"
-  [ "$status" -eq 0 ]
-  grep -F 'herdr pane split' "$HERDR_LOG"
-  ! grep -q 'pane run' "$HERDR_LOG"
-}
-
-@test "dispatch: empty PICK_EDIT_CMD leaves a plain pane" {
-  dispatch_setup $'notes-api\nnotes-api'
-  export PICK_EDIT_CMD=''
-  mkdir -p "$HOME/projects/notes-api"
-  run bash "$PICK"
-  [ "$status" -eq 0 ]
-  grep -F 'herdr pane split' "$HERDR_LOG"
-  ! grep -q 'pane run' "$HERDR_LOG"
 }
 
 @test "dispatch: unknown typed name with Cancel does nothing" {

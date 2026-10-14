@@ -2,8 +2,8 @@
 
 One fzf prompt for every place you work in [herdr](https://herdr.dev):
 open workspaces, local projects, and not-yet-cloned GitHub repos. Pick
-one and it is on screen, focused, laid out with an agent pane next to an
-editor pane. Type a new name and it creates the project (and a private
+one and it is on screen, focused, a single pane ready for your coding
+agent. Type a new name and it creates the project (and a private
 GitHub repo) after a confirm.
 
 ![the picker: open workspaces, local projects, and clonable repos in one menu](screenshots/menu.png)
@@ -16,7 +16,7 @@ daemon, nothing to build.
 ```
 prefix+s ─▶ herdr-pick (fzf, in a temporary herdr pane)
              ├─ ● open workspace ────▶ herdr workspace focus
-             ├─ local project ───────▶ workspace create + editor pane split
+             ├─ local project ───────▶ workspace create
              ├─ ↓ cached GitHub repo ▶ gh repo clone ─▶ open like a project
              └─ typed new name ──────▶ confirm ─▶ mkdir + gh repo create ─▶ open
                             ▲
@@ -40,9 +40,9 @@ Cancel, so a reflexive Enter never creates anything.
 
 ![create confirm: Cancel is the highlighted default](screenshots/confirm.png)
 
-Opening a workspace lays out two panes: an empty shell on the left for
-your coding agent, and your editor (`PICK_EDIT_CMD`, default `nvim .`)
-on the right. The `--label` herdr gets is the dedup key for the next
+Opening a workspace is a single pane rooted at the project, focused,
+ready for you to start your coding agent (or an editor, or anything
+else) in it. The `--label` herdr gets is the dedup key for the next
 run, and `--focus` is load-bearing: a CLI create does not focus by
 default, and the picker should leave you in the new workspace.
 
@@ -268,11 +268,6 @@ PICK_OWNER_DIR[acme-org]="$HOME/work"
 # Default owner for sites with an empty owner field. Unset = `gh api
 # user`, queried lazily, only when a create is actually requested.
 PICK_DEFAULT_OWNER=you
-
-# Editor pane command (left pane stays an empty shell for your agent).
-# Default "nvim ." when nvim exists; skipped when the binary is missing;
-# set empty for a plain shell.
-PICK_EDIT_CMD="nvim ."
 ```
 
 The shipped `herdr-pick/files/pick.conf` is the same list, fully
@@ -296,7 +291,7 @@ one.
 bats test/
 ```
 
-29 tests cover the pure config resolution (`parse_destination`,
+27 tests cover the pure config resolution (`parse_destination`,
 `clone_dest`, `resolve_default_owner`), the refresh's keep-last-good
 behaviour with `gh` stubbed, and the full dispatch end-to-end with
 `herdr`, `fzf` and `gh` stubbed (jq stays real, parsing the stub

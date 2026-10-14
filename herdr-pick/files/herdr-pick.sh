@@ -63,11 +63,6 @@ set -euo pipefail
 #                       pick-repos-refresh, not by this script)
 #   PICK_OWNER_DIR      optional map overriding where an owner's repos
 #                       clone: PICK_OWNER_DIR[owner]=dir
-#   PICK_EDIT_CMD       command run in the editor pane of an opened
-#                       workspace (default "nvim ." when nvim is
-#                       installed; set it empty for a plain shell). When
-#                       the command's binary is missing, the pane run is
-#                       skipped rather than erroring.
 declare -a PICK_SITES=()
 declare -A PICK_OWNER_DIR=()
 CONF="${HERDR_PICK_CONF:-${XDG_CONFIG_HOME:-$HOME/.config}/herdr-pick/pick.conf}"
@@ -126,9 +121,9 @@ notify() {
 #
 # If a workspace labelled <name> is already open, focus it, re-picking
 # an open project shouldn't reach this (dedup), but a typed name can.
-# Otherwise create a workspace rooted at <project_dir> and lay out the
-# standard two-pane project layout: an empty shell on the left to start a
-# coding agent in, and the editor (PICK_EDIT_CMD) on the right.
+# Otherwise create a single-pane workspace rooted at <project_dir>: the
+# one pane is the pane you start your coding agent in (or an editor, or
+# anything else, by hand).
 #
 # The explicit --label matters: it's the dedup key on the next run, so it
 # must not be left to herdr's cwd-derived naming. --focus is load-bearing
@@ -138,62 +133,21 @@ notify() {
 # (verified on herdr 0.7.1, which fixed the focus-revert of upstream issue
 # #658).
 #
-# Layout: the workspace's root pane becomes the left/agent pane; we split
-# it rightward for the editor (cwd = project so the editor opens in it)
-# and launch PICK_EDIT_CMD there via `pane run`, then focus back left so
-# the agent prompt is ready to type into. Every step past the create is
-# best-effort: an API-shape change (unparseable pane id), a split failure,
-# or the editor binary not being installed just degrades to the plain
-# single-pane workspace rather than aborting the open. Assumes
-# <project_dir> already exists, callers resolve/validate the path first.
+# Assumes <project_dir> already exists, callers resolve/validate the path
+# first.
 open_project() {
-  local name="$1" project_dir="$2" ws_id create left right
+  local name="$1" project_dir="$2" ws_id
   ws_id="${open_ws[$name]:-}"
   if [[ -n "$ws_id" ]]; then
     herdr workspace focus "$ws_id" >/dev/null 2>&1 || true
     return 0
   fi
 
-  create="$(herdr workspace create --cwd "$project_dir" --label "$name" \
-              --focus 2>/dev/null)" || {
+  herdr workspace create --cwd "$project_dir" --label "$name" \
+    --focus >/dev/null 2>&1 || {
     notify "Could not create workspace '$name'."
     return 1
   }
-
-  # Root pane == left/agent pane. If we can't read its id (API shift), the
-  # workspace still opened as one pane, leave it at that.
-  left="$(jq -r '.result.root_pane.pane_id // empty' <<<"$create" 2>/dev/null)"
-  [[ -n "$left" ]] || return 0
-
-  # Split right for the editor; --no-focus keeps focus on the left pane.
-  # --ratio is the fraction kept by the ORIGINAL (left/agent) pane, so 0.33
-  # leaves the agent a third and gives the editor two thirds.
-  right="$(herdr pane split "$left" --direction right --cwd "$project_dir" \
-             --ratio 0.33 --no-focus 2>/dev/null \
-             | jq -r '.result.pane.pane_id // empty' 2>/dev/null)"
-  [[ -n "$right" ]] || return 0
-
-  # Launch the editor in the right pane, then make sure focus lands on the
-  # left/agent pane regardless of split's focus behaviour. The default
-  # "nvim ." opens the workspace cwd (nvim's explorer on the project)
-  # rather than the dashboard start screen; the pane's cwd is already the
-  # project (--cwd above), so "." resolves to it. The launch is
-  # best-effort for the default and for conf-set commands alike: when the
-  # binary is missing (or PICK_EDIT_CMD is empty) the pane is left as a
-  # plain shell rather than erroring.
-  if [[ -n "${PICK_EDIT_CMD+x}" ]]; then
-    edit_bin=""
-    for tok in $PICK_EDIT_CMD; do
-      [[ "$tok" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]] || { edit_bin="$tok"; break; }
-    done
-    if [[ -n "${PICK_EDIT_CMD}" ]] \
-       && { [[ -z "$edit_bin" ]] || command -v "$edit_bin" >/dev/null 2>&1; }; then
-      herdr pane run "$right" "$PICK_EDIT_CMD" >/dev/null 2>&1 || true
-    fi
-  elif command -v nvim >/dev/null 2>&1; then
-    herdr pane run "$right" "nvim ." >/dev/null 2>&1 || true
-  fi
-  herdr pane focus --direction left --pane "$right" >/dev/null 2>&1 || true
 }
 
 # parse_destination <typed-name> <default-owner>: resolve a CREATE target
